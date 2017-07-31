@@ -67,38 +67,33 @@ typedef struct Pixel{
 
 //TODO: finish me
 
-unsigned char calculateAverageR(Pixel ** image, int width, int height, int x, int y);
-unsigned char calculateAverageB(Pixel * image, int width, int height, int x, int y);
-unsigned char calculateAverageG(Pixel * image, int width, int height, int x, int y);
+void calculateAveragePixel(Pixel ** image,  Pixel ** blurred_image, int width, int height, int x, int y);
+uint8_t calculateAverageB(Pixel ** image, int width, int height, int x, int y);
+uint8_t calculateAverageG(Pixel ** image, int width, int height, int x, int y);
 
 
 void main(int argc, char* argv[]) {
-  if(argc != 2){
-    printf("Please input the name of the picture you want to blurr.\n");
+  if(argc != 3){
+    printf("Please input the name of the picture you want to blurr and the desired name of the blurred image.\n");
     return;
   }
 
   int i, j;
-  char  filename[30];
+  char  filename[256];
   strcpy(filename, argv[1]);
-  printf("Successfully copied input. \n\n");
 
   //sample code to read first 14 bytes of BMP file format
   FILE* file = fopen(filename, "rb");
+
+  if(file == NULL){
+    printf("FILE NOT FOUND!! Please input the name of the picture you want to blurr.\n");
+    return;
+  }
   BMP_Header header;
   DIB_Header diHeader;
   int fnameSize = strlen(filename);
-  char newFileName[4+fnameSize];
-
-  newFileName[0] = 'B';
-  newFileName[1] = 'l';
-  newFileName[2] = 'r';
-  newFileName[3] = '_';
-  for(i = 0; i < fnameSize+1; i++){
-    newFileName[4+i] = filename[i];
-  }
-
-  printf("%s\n\n", newFileName);
+  char newFileName[256];
+  strcpy(newFileName, argv[2]);
 
   //read bitmap file header (14 bytes)
   fread(header.signature, sizeof(uint8_t)*2, 1, file);
@@ -140,29 +135,32 @@ void main(int argc, char* argv[]) {
   printf("Important Color Count: %d\n", diHeader.colorCount);
 
   Pixel ** image = (Pixel **) malloc(diHeader.width*diHeader.height*sizeof(Pixel*));
+  Pixel ** blurred_image = (Pixel **) malloc(diHeader.width*diHeader.height*sizeof(Pixel*));
   uint32_t buffer_size = ((3*diHeader.width)%4);
   uint8_t buffer[buffer_size];
 
 
   for (i = 0; i < diHeader.height*diHeader.width; i++) {
         image[i] = malloc(sizeof(Pixel));
+        blurred_image[i] = malloc(sizeof(Pixel));
   }
   
-  printf("\nPrinting Normal image: \n\n");
+  printf("\nLoading Normal image. \n\n");
   for (i = 0; i < diHeader.height; i++) {
       for (j = 0; j < diHeader.width; j++) {
           fread(&((*(image + i*diHeader.width + j))->r), 1, 1, file);
           fread(&((*(image + i*diHeader.width + j))->g), 1, 1, file);
           fread(&((*(image + i*diHeader.width + j))->b), 1, 1, file);
-          printf("Printing pixel Height: %d Width: %d  \n", i,j);
-          printf("r: %x g: %x b: %x \n", (*(image + i*diHeader.width + j))->r, 
-            (*(image + i*diHeader.width + j))->g, (*(image + i*diHeader.width + j))->b);
       }
-      printf("Modulus after length: %d\n", ((3*diHeader.width)%4));
-      fread(buffer, buffer_size, 1, file);
-      printf("Buffer Size: %d\n", buffer_size);
+     fread(buffer, buffer_size, 1, file);
       //printf("\n");
   }
+
+  for (i = 0; i < diHeader.height; i++) {
+      for (j = 0; j < diHeader.width; j++) {
+        calculateAveragePixel(image, blurred_image, diHeader.width, diHeader.height, j, i);
+      }
+    }
 
   FILE* newFile = fopen(newFileName, "wb");
   Pixel newImage[diHeader.width][diHeader.height];
@@ -187,51 +185,59 @@ void main(int argc, char* argv[]) {
   printf("\nPrinting Blurred image: \n\n");
   for (i = 0; i < diHeader.height; i++) {
       for (j = 0; j < diHeader.width; j++) {
-          fwrite(&((*(image + i*diHeader.width + j))->r), 1, 1, newFile);
-          fwrite(&((*(image + i*diHeader.width + j))->g), 1, 1, newFile);
-          fwrite(&((*(image + i*diHeader.width + j))->b), 1, 1, newFile);
-          //printf("Printing pixel Width: %d Height: %d \n", j,i);
-          //printf("r: %x g: %x b: %x \n", image[j][i].r, image[j][i].g, image[j][i].b);
+          fwrite(&((*(blurred_image + i*diHeader.width + j))->r), 1, 1, newFile);
+          fwrite(&((*(blurred_image + i*diHeader.width + j))->g), 1, 1, newFile);
+          fwrite(&((*(blurred_image + i*diHeader.width + j))->b), 1, 1, newFile);
       }
       fwrite(buffer, buffer_size, 1, newFile);
-      //printf("Buffer: %d\n", buffer);
-      //printf("\n");
   }
   
 
-  unsigned char test;
-  test = calculateAverageR(image, diHeader.width, diHeader.height, 0, 0);
+  
   for (i = 0; i < diHeader.height*diHeader.width; i++) {
       free(image[i]);
+      free(blurred_image[i]);
   }
     
 
   free(image);
+  free(blurred_image);
   fclose(file);
-  //fclose(newFile);
+  fclose(newFile);
 }
 
-unsigned char calculateAverageR(Pixel ** image, int width, int height, int x, int y){
+void calculateAveragePixel(Pixel ** image, Pixel ** blurred_image, int width, int height, int x, int y){
   int count = 0;
-  int average = 0;
+  int averageR = 0;
+  int averageG = 0;
+  int averageB = 0;
   int i, j;
 
-  for (i = x-2; i <= x+2; i++) {
+  for (i = y-1; i <= y+1; i++) {
     if(i < 0 || i >= width)
       continue;
-      for (j = y-2; j <= y+2; j++) {
+      for (j = x-1; j <= x+1; j++) {
         if(j < 0 || j >= height)
           continue;
-        printf("x: %d y: %d value: %d ", i, j, (*(image + i*width + j))->r);
 
+        averageR += (*(image + i*width + j))->r;
+        averageG += (*(image + i*width + j))->g;
+        averageB += (*(image + i*width + j))->b;
+        count++;
       }
-      printf("\n");
   }
+  averageR = averageR/count; 
+  averageG = averageG/count; 
+  averageB = averageB/count;  
+
+  (*(blurred_image + y*width + x))->r = averageR;
+  (*(blurred_image + y*width + x))->g = averageG;
+  (*(blurred_image + y*width + x))->b = averageB;
 
 }
-unsigned char calculateAverageB(Pixel * image, int width, int height, int x, int y){
+uint8_t calculateAverageB(Pixel ** image, int width, int height, int x, int y){
 
 }
-unsigned char calculateAverageG(Pixel * image, int width, int height, int x, int y){
+uint8_t calculateAverageG(Pixel ** image, int width, int height, int x, int y){
 
 }
