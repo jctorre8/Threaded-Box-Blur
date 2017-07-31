@@ -5,9 +5,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdint.h>
-
-//TODO: finish me
-
+#include <pthread.h>
 
 ////////////////////////////////////////////////////////////////////////////////
 //MACRO DEFINITIONS
@@ -18,13 +16,7 @@
 #define BMP_HEADER_SIZE_BYTES 14
 #define BMP_DIB_HEADER_SIZE_BYTES 40
 #define MAXIMUM_IMAGE_SIZE 256
-
-//bmp compression methods
-//none:
 #define BI_RGB 0
-
-//TODO: finish me
-
 
 ////////////////////////////////////////////////////////////////////////////////
 //DATA STRUCTURES
@@ -57,25 +49,27 @@ typedef struct Pixel{
   uint8_t r;
 } Pixel;
 
-//TODO: finish me
-
-
+typedef struct Thread_Args{
+  Pixel ** normal_image;
+  Pixel ** blurred_image;
+  uint32_t width;
+  uint32_t height; 
+  uint32_t start_width;
+  uint32_t start_height; 
+  uint32_t end_width;
+  uint32_t end_height;  
+} Thread_Args;
 
 ////////////////////////////////////////////////////////////////////////////////
 //MAIN PROGRAM CODE
 
-
-//TODO: finish me
-
 void calculateAveragePixel(Pixel ** image,  Pixel ** blurred_image, int width, int height, int x, int y);
-uint8_t calculateAverageB(Pixel ** image, int width, int height, int x, int y);
-uint8_t calculateAverageG(Pixel ** image, int width, int height, int x, int y);
+void * blurSection(void * arguments);
 
-
-void main(int argc, char* argv[]) {
+int main(int argc, char* argv[]) {
   if(argc != 3){
     printf("Please input the name of the picture you want to blurr and the desired name of the blurred image.\n");
-    return;
+    return 1;
   }
 
   int i, j;
@@ -87,11 +81,10 @@ void main(int argc, char* argv[]) {
 
   if(file == NULL){
     printf("FILE NOT FOUND!! Please input the name of the picture you want to blurr.\n");
-    return;
+    return 1;
   }
   BMP_Header header;
   DIB_Header diHeader;
-  int fnameSize = strlen(filename);
   char newFileName[256];
   strcpy(newFileName, argv[2]);
 
@@ -156,10 +149,84 @@ void main(int argc, char* argv[]) {
       //printf("\n");
   }
 
-  for (i = 0; i < diHeader.height; i++) {
-      for (j = 0; j < diHeader.width; j++) {
-        calculateAveragePixel(image, blurred_image, diHeader.width, diHeader.height, j, i);
-      }
+  pthread_t thread1;
+  pthread_t thread2;
+  pthread_t thread3;
+  pthread_t thread4;
+
+  Thread_Args args1 = {
+    image, 
+    blurred_image, 
+    diHeader.width,
+    diHeader.height,
+    0,
+    0,
+    diHeader.width/2,
+    diHeader.height/2
+  };
+  Thread_Args args2 = {
+    image, 
+    blurred_image, 
+    diHeader.width,
+    diHeader.height,
+    diHeader.width/2,
+    0,
+    diHeader.width,
+    diHeader.height/2
+  };
+  Thread_Args args3 = {
+    image, 
+    blurred_image, 
+    diHeader.width,
+    diHeader.height,
+    0,
+    diHeader.height/2,
+    diHeader.width/2,
+    diHeader.height
+  };
+  Thread_Args args4 = {
+    image, 
+    blurred_image, 
+    diHeader.width,
+    diHeader.height,
+    diHeader.width/2,
+    diHeader.height/2,
+    diHeader.width,
+    diHeader.height
+  };
+
+  if (pthread_create(&thread1, NULL, &blurSection, (void *)&args1)) {
+        printf("Failed to create Thread 1 :(\n");
+        return 1;
+    }
+  if (pthread_create(&thread2, NULL, &blurSection, (void *)&args2)) {
+        printf("Failed to create Thread 2 :(\n");
+        return 2;
+    }
+  if (pthread_create(&thread3, NULL, &blurSection, (void *)&args3)) {
+        printf("Failed to create Thread 3 :(\n");
+        return 3;
+    }
+  if (pthread_create(&thread4, NULL, &blurSection, (void *)&args4)) {
+        printf("Failed to create Thread 4 :(\n");
+        return 4;
+    }
+
+  if (pthread_join(thread1, NULL)) {
+        printf("Failed to join Thread 1 :(\n");
+        return 1;
+    }
+  if (pthread_join(thread2, NULL)) {
+        printf("Failed to join Thread 2 :(\n");
+        return 2;
+    }
+  if (pthread_join(thread3, NULL)) {
+        printf("Failed to join Thread 3 :(\n");
+        return 3;
+    }
+  if (pthread_join(thread4, NULL)) {
+        printf("Failed to join Thread 4 :(\n");
+        return 4;
     }
 
   FILE* newFile = fopen(newFileName, "wb");
@@ -204,6 +271,8 @@ void main(int argc, char* argv[]) {
   free(blurred_image);
   fclose(file);
   fclose(newFile);
+
+  return 0;
 }
 
 void calculateAveragePixel(Pixel ** image, Pixel ** blurred_image, int width, int height, int x, int y){
@@ -235,9 +304,17 @@ void calculateAveragePixel(Pixel ** image, Pixel ** blurred_image, int width, in
   (*(blurred_image + y*width + x))->b = averageB;
 
 }
-uint8_t calculateAverageB(Pixel ** image, int width, int height, int x, int y){
+void * blurSection(void * arguments);void * blurSection(void * arguments){
 
-}
-uint8_t calculateAverageG(Pixel ** image, int width, int height, int x, int y){
+  Thread_Args * args = arguments;
+  int i, j;
 
+  for (i = args->start_height; i < args->end_height; i++) {
+      for (j = args->start_width; j < args->end_width; j++) {
+        calculateAveragePixel(args->normal_image, args->blurred_image, 
+          args->width, args->height, j, i);
+      }
+    }
+  pthread_exit(NULL);
+  return NULL;
 }
