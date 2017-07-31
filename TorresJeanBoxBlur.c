@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <stdint.h>
 
 //TODO: finish me
 
@@ -28,32 +29,32 @@
 ////////////////////////////////////////////////////////////////////////////////
 //DATA STRUCTURES
 
-typedef struct {
-  char signature[2];    //ID field
-  int size;   //Size of the BMP file
-  short reserved1;    //Application specific
-  short reserved2;    //Application specific
-  int offset_pixel_array;  //Offset where the pixel array (bitmap data) can be found
+typedef struct BMP_Header{
+  uint8_t signature[2];    //ID field
+  uint32_t size;   //Size of the BMP file
+  uint16_t reserved1;    //Application specific
+  uint16_t reserved2;    //Application specific
+  uint32_t offset_pixel_array;  //Offset where the pixel array (bitmap data) can be found
 } BMP_Header;
 
-typedef struct {
-  int headerSize;
-  int width;
-  int height;
-  short planes;    
-  short bitsPerPixel;    
-  int compression;  
-  int imageSize;
-  int xPixelsPM;
-  int yPixelsPM;
-  int colors;
-  int colorCount;
+typedef struct DIB_Header{
+  uint32_t headerSize;
+  uint32_t width;
+  uint32_t height;
+  uint16_t planes;    
+  uint16_t bitsPerPixel;    
+  uint32_t compression;  
+  uint32_t imageSize;
+  uint32_t xPixelsPM;
+  uint32_t yPixelsPM;
+  uint32_t colors;
+  uint32_t colorCount;
 } DIB_Header;
 
-typedef struct {
-  unsigned char b;    
-  unsigned char g;    
-  unsigned char r;
+typedef struct Pixel{
+  uint8_t b;    
+  uint8_t g;    
+  uint8_t r;
 } Pixel;
 
 //TODO: finish me
@@ -86,7 +87,6 @@ void main(int argc, char* argv[]) {
   FILE* file = fopen(filename, "rb");
   BMP_Header header;
   DIB_Header diHeader;
-  unsigned int buffer;
   int fnameSize = strlen(filename);
   char newFileName[4+fnameSize];
 
@@ -101,11 +101,11 @@ void main(int argc, char* argv[]) {
   printf("%s\n\n", newFileName);
 
   //read bitmap file header (14 bytes)
-  fread(&header.signature, sizeof(char)*2, 1, file);
-  fread(&header.size, sizeof(int), 1, file);
-  fread(&header.reserved1, sizeof(short), 1, file);
-  fread(&header.reserved2, sizeof(short), 1, file);
-  fread(&header.offset_pixel_array, sizeof(int), 1, file);
+  fread(header.signature, sizeof(uint8_t)*2, 1, file);
+  fread(&header.size, sizeof(uint32_t), 1, file);
+  fread(&header.reserved1, sizeof(uint16_t), 1, file);
+  fread(&header.reserved2, sizeof(uint16_t), 1, file);
+  fread(&header.offset_pixel_array, sizeof(uint32_t), 1, file);
 
   printf("Printing the BMP Header: \n");
   printf("signature: %c%c\n", header.signature[0], header.signature[1]);
@@ -114,17 +114,17 @@ void main(int argc, char* argv[]) {
   printf("reserved2: %d\n", header.reserved2);
   printf("offset_pixel_array: %d\n", header.offset_pixel_array);
 
-  fread(&diHeader.headerSize, sizeof(int), 1, file);
-  fread(&diHeader.width, sizeof(int), 1, file);
-  fread(&diHeader.height, sizeof(int), 1, file);
-  fread(&diHeader.planes, sizeof(short), 1, file);
-  fread(&diHeader.bitsPerPixel, sizeof(short), 1, file);
-  fread(&diHeader.compression, sizeof(int), 1, file);
-  fread(&diHeader.imageSize, sizeof(int), 1, file);
-  fread(&diHeader.xPixelsPM, sizeof(int), 1, file);
-  fread(&diHeader.yPixelsPM, sizeof(int), 1, file);
-  fread(&diHeader.colors, sizeof(int), 1, file);
-  fread(&diHeader.colorCount, sizeof(int), 1, file);
+  fread(&diHeader.headerSize, sizeof(uint32_t), 1, file);
+  fread(&diHeader.width, sizeof(uint32_t), 1, file);
+  fread(&diHeader.height, sizeof(uint32_t), 1, file);
+  fread(&diHeader.planes, sizeof(uint16_t), 1, file);
+  fread(&diHeader.bitsPerPixel, sizeof(uint16_t), 1, file);
+  fread(&diHeader.compression, sizeof(uint32_t), 1, file);
+  fread(&diHeader.imageSize, sizeof(uint32_t), 1, file);
+  fread(&diHeader.xPixelsPM, sizeof(uint32_t), 1, file);
+  fread(&diHeader.yPixelsPM, sizeof(uint32_t), 1, file);
+  fread(&diHeader.colors, sizeof(uint32_t), 1, file);
+  fread(&diHeader.colorCount, sizeof(uint32_t), 1, file);
 
   printf("\nPrinting the DIB Header: \n");
   printf("DIB Header Size: %d\n", diHeader.headerSize);
@@ -139,43 +139,44 @@ void main(int argc, char* argv[]) {
   printf("Colors in Color Table: %d\n", diHeader.colors);
   printf("Important Color Count: %d\n", diHeader.colorCount);
 
-  Pixel ** image = (Pixel **) malloc(diHeader.width*diHeader.height*sizeof(Pixel));
+  Pixel ** image = (Pixel **) malloc(diHeader.width*diHeader.height*sizeof(Pixel*));
+  uint32_t buffer_size = ((3*diHeader.width)%4);
+  uint8_t buffer[buffer_size];
 
+
+  for (i = 0; i < diHeader.height*diHeader.width; i++) {
+        image[i] = malloc(sizeof(Pixel));
+  }
+  
+  printf("\nPrinting Normal image: \n\n");
   for (i = 0; i < diHeader.height; i++) {
       for (j = 0; j < diHeader.width; j++) {
-        printf("Printing Array [%d][%d]; \n",i*diHeader.width ,j);
-        printf("Printing Pointer [%d]; \n",i*diHeader.width +j);
-        *(image + i*diHeader.width + j) = (Pixel *) malloc(sizeof(Pixel));
+          fread(&((*(image + i*diHeader.width + j))->r), 1, 1, file);
+          fread(&((*(image + i*diHeader.width + j))->g), 1, 1, file);
+          fread(&((*(image + i*diHeader.width + j))->b), 1, 1, file);
+          printf("Printing pixel Height: %d Width: %d  \n", i,j);
+          printf("r: %x g: %x b: %x \n", (*(image + i*diHeader.width + j))->r, 
+            (*(image + i*diHeader.width + j))->g, (*(image + i*diHeader.width + j))->b);
       }
-    }
-  printf("\nPrinting Normal image: \n\n");
-  for (i = diHeader.height-1; i >= 0; i--) {
-      for (j = 0; j < diHeader.width; j++) {
-          fread(&(*(image + i*j + j))->r, 1, 1, file);
-          fread(&(*(image + i*j + j))->b, 1, 1, file);
-          fread(&(*(image + i*j + j))->g, 1, 1, file);
-          //printf("Printing pixel Width: %d Height: %d \n", j,i);
-          //printf("r: %x g: %x b: %x \n", image[j][i].r, image[j][i].g, image[j][i].b);
-      }
-      fread(&buffer, (4-(4%diHeader.width)), 1, file);
-      //printf("Buffer: %d\n", buffer);
+      printf("Modulus after length: %d\n", ((3*diHeader.width)%4));
+      fread(buffer, buffer_size, 1, file);
+      printf("Buffer Size: %d\n", buffer_size);
       //printf("\n");
   }
 
-  /*
   FILE* newFile = fopen(newFileName, "wb");
   Pixel newImage[diHeader.width][diHeader.height];
 
   fwrite(&header.signature, sizeof(char)*2, 1, newFile);
   fwrite(&header.size, sizeof(int), 1, newFile);
-  fwrite(&header.reserved1, sizeof(short), 1, newFile);
-  fwrite(&header.reserved2, sizeof(short), 1, newFile);
+  fwrite(&header.reserved1, sizeof(uint16_t), 1, newFile);
+  fwrite(&header.reserved2, sizeof(uint16_t), 1, newFile);
   fwrite(&header.offset_pixel_array, sizeof(int), 1, newFile);
   fwrite(&diHeader.headerSize, sizeof(int), 1, newFile);
   fwrite(&diHeader.width, sizeof(int), 1, newFile);
   fwrite(&diHeader.height, sizeof(int), 1, newFile);
-  fwrite(&diHeader.planes, sizeof(short), 1, newFile);
-  fwrite(&diHeader.bitsPerPixel, sizeof(short), 1, newFile);
+  fwrite(&diHeader.planes, sizeof(uint16_t), 1, newFile);
+  fwrite(&diHeader.bitsPerPixel, sizeof(uint16_t), 1, newFile);
   fwrite(&diHeader.compression, sizeof(int), 1, newFile);
   fwrite(&diHeader.imageSize, sizeof(int), 1, newFile);
   fwrite(&diHeader.xPixelsPM, sizeof(int), 1, newFile);
@@ -184,28 +185,26 @@ void main(int argc, char* argv[]) {
   fwrite(&diHeader.colorCount, sizeof(int), 1, newFile);
 
   printf("\nPrinting Blurred image: \n\n");
-  for (i = diHeader.height-1; i >= 0; i--) {
+  for (i = 0; i < diHeader.height; i++) {
       for (j = 0; j < diHeader.width; j++) {
-          fwrite(&image[j][i].r, 1, 1, newFile);
-          fwrite(&image[j][i].b, 1, 1, newFile);
-          fwrite(&image[j][i].g, 1, 1, newFile);
+          fwrite(&((*(image + i*diHeader.width + j))->r), 1, 1, newFile);
+          fwrite(&((*(image + i*diHeader.width + j))->g), 1, 1, newFile);
+          fwrite(&((*(image + i*diHeader.width + j))->b), 1, 1, newFile);
           //printf("Printing pixel Width: %d Height: %d \n", j,i);
           //printf("r: %x g: %x b: %x \n", image[j][i].r, image[j][i].g, image[j][i].b);
       }
-      fwrite(&buffer, (4-(4%diHeader.width)), 1, newFile);
+      fwrite(buffer, buffer_size, 1, newFile);
       //printf("Buffer: %d\n", buffer);
       //printf("\n");
   }
-  */
+  
 
   unsigned char test;
-  test = calculateAverageR(image, diHeader.width, diHeader.height, 0, 2);
-
-    for (i = 0; i < diHeader.height; i++) {
-      for (j = 0; j < diHeader.width; j++) {
-        free(image + i*diHeader.width + j);
-      }
-    }
+  test = calculateAverageR(image, diHeader.width, diHeader.height, 0, 0);
+  for (i = 0; i < diHeader.height*diHeader.width; i++) {
+      free(image[i]);
+  }
+    
 
   free(image);
   fclose(file);
@@ -218,12 +217,12 @@ unsigned char calculateAverageR(Pixel ** image, int width, int height, int x, in
   int i, j;
 
   for (i = x-2; i <= x+2; i++) {
-    if(i < 0 || i > width)
+    if(i < 0 || i >= width)
       continue;
       for (j = y-2; j <= y+2; j++) {
-        if(j < 0 || j > height)
+        if(j < 0 || j >= height)
           continue;
-        printf("x: %d y: %d", i, j);
+        printf("x: %d y: %d value: %d ", i, j, (*(image + i*width + j))->r);
 
       }
       printf("\n");
