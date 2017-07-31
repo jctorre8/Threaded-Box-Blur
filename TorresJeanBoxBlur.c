@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
 
   if(file == NULL){
     printf("FILE NOT FOUND!! Please input the name of the picture you want to blurr.\n");
-    return 1;
+    return 2;
   }
   BMP_Header header;
   DIB_Header diHeader;
@@ -197,36 +197,36 @@ int main(int argc, char* argv[]) {
 
   if (pthread_create(&thread1, NULL, &blurSection, (void *)&args1)) {
         printf("Failed to create Thread 1 :(\n");
-        return 1;
+        return 3;
     }
   if (pthread_create(&thread2, NULL, &blurSection, (void *)&args2)) {
         printf("Failed to create Thread 2 :(\n");
-        return 2;
+        return 4;
     }
   if (pthread_create(&thread3, NULL, &blurSection, (void *)&args3)) {
         printf("Failed to create Thread 3 :(\n");
-        return 3;
+        return 5;
     }
   if (pthread_create(&thread4, NULL, &blurSection, (void *)&args4)) {
         printf("Failed to create Thread 4 :(\n");
-        return 4;
+        return 6;
     }
 
   if (pthread_join(thread1, NULL)) {
         printf("Failed to join Thread 1 :(\n");
-        return 1;
+        return 7;
     }
   if (pthread_join(thread2, NULL)) {
         printf("Failed to join Thread 2 :(\n");
-        return 2;
+        return 8;
     }
   if (pthread_join(thread3, NULL)) {
         printf("Failed to join Thread 3 :(\n");
-        return 3;
+        return 9;
     }
   if (pthread_join(thread4, NULL)) {
         printf("Failed to join Thread 4 :(\n");
-        return 4;
+        return 10;
     }
 
   FILE* newFile = fopen(newFileName, "wb");
@@ -249,7 +249,7 @@ int main(int argc, char* argv[]) {
   fwrite(&diHeader.colors, sizeof(int), 1, newFile);
   fwrite(&diHeader.colorCount, sizeof(int), 1, newFile);
 
-  printf("\nPrinting Blurred image: \n\n");
+  printf("Printing Blurred Image. \n\n");
   for (i = 0; i < diHeader.height; i++) {
       for (j = 0; j < diHeader.width; j++) {
           fwrite(&((*(blurred_image + i*diHeader.width + j))->r), 1, 1, newFile);
@@ -304,7 +304,7 @@ void calculateAveragePixel(Pixel ** image, Pixel ** blurred_image, int width, in
   (*(blurred_image + y*width + x))->b = averageB;
 
 }
-void * blurSection(void * arguments);void * blurSection(void * arguments){
+void * blurSection(void * arguments){
 
   Thread_Args * args = arguments;
   int i, j;
